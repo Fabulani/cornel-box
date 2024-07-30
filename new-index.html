@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+    <title>Cornel Box</title>
+    <style>
+      html,
+      body {
+        height: 100%;
+        margin: 0;
+      }
+
+      #c {
+        width: 100%;
+        height: 100%;
+        display: block;
+      }
+
+      #info {
+        position: absolute;
+        top: 10px;
+        width: 100%;
+        text-align: center;
+        z-index: 100;
+        display: block;
+      }
+    </style>
+  </head>
+  <body>
+    <script async src="https://unpkg.com/es-module-shims@1.3.6/dist/es-module-shims.js"></script>
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://unpkg.com/three@0.148.0/build/three.module.js",
+          "three/addons/": "https://unpkg.com/three@0.148.0/examples/jsm/"
+        }
+      }
+    </script>
+
+    <script type="module">
+      import * as THREE from "three";
+      import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+      import { FontLoader } from "three/addons/loaders/FontLoader.js";
+      import { TextGeometry } from "three/addons/geometries/TextGeometry.js";
+      import { VRButton } from "three/addons/webxr/VRButton.js";
+      import { XRControllerModelFactory } from "three/addons/webxr/XRControllerModelFactory.js";
+      import { GUI } from "three/addons/libs/lil-gui.module.min.js";
+      import { RectAreaLightHelper } from "three/addons/helpers/RectAreaLightHelper.js";
+      import { RectAreaLightUniformsLib } from "three/addons/lights/RectAreaLightUniformsLib.js";
+      import { InteractiveGroup } from "three/addons/interactive/InteractiveGroup.js";
+      import { HTMLMesh } from "three/addons/interactive/HTMLMesh.js";
+
+      /* Main script */
+      let camera, globalScene, scene, renderer, controls;
+
+      // Initialize empty scene with cameras and controls
+      init();
+
+      // Initialize rect area light
+      RectAreaLightUniformsLib.init();
+
+      // Enable VR
+      setupVR();
+
+      // Create scene entities
+      const cornelScene = new THREE.Object3D();
+      const cornelBox = createCornelBox();
+      const table = createTable();
+      const coneLambert = new THREE.Mesh(new THREE.ConeGeometry(1, 2, 32), new THREE.MeshLambertMaterial());
+      const spherePhysical = new THREE.Mesh(new THREE.SphereGeometry(1, 32, 32), new THREE.MeshPhysicalMaterial());
+      const cylinderPhong = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 2, 32), new THREE.MeshPhongMaterial());
+
+      // Name entities
+      table.name = "table";
+      coneLambert.name = "coneLambert";
+      spherePhysical.name = "spherePhysical";
+      cylinderPhong.name = "cylinderPhong";
+
+      // Position the scene entities
+      coneLambert.position.set(-3, 6, -1);
+      spherePhysical.position.set(0, 6.25, 1);
+      cylinderPhong.position.set(3, 6, -1);
+      cornelScene.position.set(0, 0, -5);
+      cornelScene.scale.set(0.25, 0.25, 0.25);
+
+      // Add to the scene
+      cornelScene.add(cornelBox);
+      cornelScene.add(table);
+      cornelScene.add(coneLambert);
+      cornelScene.add(spherePhysical);
+      cornelScene.add(cylinderPhong);
+      scene.add(cornelScene);
+
+      // Add a floor
+      const floor = new THREE.Mesh(
+        new THREE.BoxGeometry(100, 0.01, 100),
+        new THREE.MeshStandardMaterial({ color: 0xffffff })
+      );
+      scene.add(floor);
+      floor.receiveShadow = true;
+      floor.castShadow = true;
+
+      // Setup the GUI
+      setupGUI();
+
+      // Enable shadows
+      traverse(cornelBox, enableShadows);
+      traverse(table, enableShadows);
+      traverse(coneLambert, enableShadows);
+      traverse(spherePhysical, enableShadows);
+      traverse(cylinderPhong, enableShadows);
+
+      // Render with setAnimationLoop for XR compatibility
+      renderer.setAnimationLoop(function (time) {
+        // Update controls
+        controls.update(); // only required if controls.enableDamping = true, or if controls.autoRotate = true
+
+        // Conel box wall animation
+        animateCornelBox();
+
+        // Render
+        renderer.render(scene, camera);
+      });
+      /* End of main script */
+
+      // Initialize empty scene with renderer, cameras, lights, and controls
+      function init() {
+        // Global scene
+        scene = new THREE.Scene();
+
+        // Renderer
+        renderer = new THREE.WebGLRenderer();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true; // Shadows
+
+        // Cameras
+        camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.01, 500);
+        camera.position.set(0, 2, 1);
+
+        // Controls
+        controls = new OrbitControls(camera, renderer.domElement);
+        controls.listenToKeyEvents(window); // optional
+        controls.enableDamping = true; // an animation loop is required when either damping or auto-rotation are enabled
+        controls.dampingFactor = 0.05;
+        controls.screenSpacePanning = false;
+        controls.minDistance = 0;
+        controls.maxDistance = 500;
+        controls.target = new THREE.Vector3(0, 1, -5);
+
+        // controls.autoRotate = true;
+        controls.autoRotateSpeed = 1;
+
+        // Lights
+        {
+          const color = 0xffffff;
+          const intensity = 0.2;
+          const light = new THREE.AmbientLight(color, intensity);
+          light.name = "ambientLight";
+          scene.add(light);
+        }
+
+        // Additional setup
+        document.body.appendChild(renderer.domElement);
+
+        // Window resize fix
+        window.addEventListener("resize", onWindowResize);
+      }
+    </script>
+  </body>
+</html>
